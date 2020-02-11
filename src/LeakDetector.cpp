@@ -28,7 +28,7 @@
   password changes
   -SSID changes OK
   -project get deleted from blynk, OK
-  check if can connect after long deep sleep with correct config
+  - check if can connect after long deep sleep with correct config, OK
 
  *************************************/
 
