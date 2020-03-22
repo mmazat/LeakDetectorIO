@@ -8,29 +8,6 @@
                    http://www.blynk.io/
 
  *************************************************************/
-/*************************************
-  This code has tested on ESP-01S model, GPIO16 must be manually connected to reset pin to wakeup the cheep
-  after the deep sleep cycle (https://www.youtube.com/watch?v=foljGPuLjYk)
-
-  rest pin, and GPIO0 and GPIO2 must be pulled up using 5K resistor to VCC, expriment shown it is much more robut
-  when they are pulled up rather than floating
-
-  the INPUT pin is 3 (Rx) needs to pulled down to low to trigger the leak alarm
-
-  Feed no more than 3V as input, otherwise it consumes more power in deep sleep mode
-
-  connecto to AP, http to  192.168.4.1, enter blynk auth and access point information
-  -port 443
-  -server blynk-cloud.com
-
-  Tested senarios:
-  wifi is goes off
-  password changes
-  -SSID changes OK
-  -project get deleted from blynk, OK
-  - check if can connect after long deep sleep with correct config, OK
-
- *************************************/
 
 #define USE_ESP01S_BOARD          // For all other ESP8266-based boards -
 // see "Custom board configuration" in Settings.h
