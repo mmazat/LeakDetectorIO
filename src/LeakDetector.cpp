@@ -33,6 +33,8 @@
 #define CONFIG_READ_PIN 0
 #define CONFIG_LOW_PIN 2
 
+#define DEEP_SLEEP_TIME 3600e6
+
 #define MSG_LEAK "Leak Detected."
 #define MSG_NO_LEAK "No Leak Detected."
 #define MSG_SLEEP "In Deep Sleep."
@@ -56,7 +58,7 @@ void ICACHE_RAM_ATTR watchDog()
 
   if (sec_passed >= WATCH_DOG_TIMEOUT)
   {
-    ESP.deepSleep(ESP.deepSleepMax());
+    ESP.deepSleep(DEEP_SLEEP_TIME);
   }
 }
 
@@ -79,8 +81,8 @@ void setup()
   pinMode(INPUT_PIN, INPUT_PULLUP);
   //if required use pin 0 and 2 as output
   pinMode(CONFIG_LOW_PIN, OUTPUT);
-  pinMode(CONFIG_READ_PIN, OUTPUT);
-  digitalWrite(CONFIG_READ_PIN, HIGH);
+  //pinMode(CONFIG_READ_PIN, OUTPUT);
+  //digitalWrite(CONFIG_READ_PIN, HIGH);
   delay(100);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
@@ -88,8 +90,7 @@ void setup()
   //setup watch dog in case blynk got stuck
   timer_init();
 
-  digitalWrite(CONFIG_LOW_PIN, LOW); // make GPIO0 output low
-  delay(100);
+  digitalWrite(CONFIG_LOW_PIN, LOW); // make GPIO0 output low  
   // check GPIO2 input to see if push button pressed connecting it to GPIO0
   configMode = (digitalRead(CONFIG_READ_PIN) == LOW);
   if (configMode)
@@ -97,9 +98,13 @@ void setup()
     configMode = true;
     BlynkState::set(MODE_WAIT_CONFIG); //blynk.run will take it from there
     Serial.println("Config mode started");
+  }else
+  {
+    digitalWrite(CONFIG_LOW_PIN, HIGH);
   }
+  
 
-  digitalWrite(CONFIG_LOW_PIN, HIGH);
+  
   BlynkProvisioning.begin();
 }
 
@@ -147,6 +152,6 @@ void loop()
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
 
-    ESP.deepSleep(ESP.deepSleepMax());
+    ESP.deepSleep(DEEP_SLEEP_TIME);
   }
 }
