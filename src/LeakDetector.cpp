@@ -19,17 +19,19 @@
 #define BLYNK_PRINT Serial
 
 //sleep time between each measurement
-#define DEEP_SLEEP_TIME 300e6 //microsec
-
 //in case connection can not be established, sleep long enough to save battery
 
-#define WATCH_DOG_TIMEOUT 12            //seconds, time to config the chip
+#define WATCH_DOG_TIMEOUT 15 //seconds, time to config the chip
 
 //skip restarting the board after blynk connection error, and let the wa  tch dog sleep the board to save power
 #define DONT_RESTART_AFTER_ERROR
 
 #define RX_PORT 3
+#define TX_PORT 1
 #define INPUT_PIN RX_PORT
+
+#define CONFIG_READ_PIN 0
+#define CONFIG_LOW_PIN 2
 
 #define MSG_LEAK "Leak Detected."
 #define MSG_NO_LEAK "No Leak Detected."
@@ -54,7 +56,7 @@ void ICACHE_RAM_ATTR watchDog()
 
   if (sec_passed >= WATCH_DOG_TIMEOUT)
   {
-    ESP.deepSleep(DEEP_SLEEP_TIME);
+    ESP.deepSleep(ESP.deepSleepMax());
   }
 }
 
@@ -71,32 +73,38 @@ void timer_init(void)
 
 void setup()
 {
-
+  delay(100);
+  //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
   pinMode(INPUT_PIN, FUNCTION_0); // this changes Rx port to be GPIO, Required
   pinMode(INPUT_PIN, INPUT_PULLUP);
-
+  //if required use pin 0 and 2 as output
+  pinMode(CONFIG_LOW_PIN, OUTPUT);
+  pinMode(CONFIG_READ_PIN, OUTPUT);
+  digitalWrite(CONFIG_READ_PIN, HIGH);
   delay(100);
-  //http://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
+
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
 
   //setup watch dog in case blynk got stuck
   timer_init();
 
+  digitalWrite(CONFIG_LOW_PIN, LOW); // make GPIO0 output low
+  delay(100);
+  // check GPIO2 input to see if push button pressed connecting it to GPIO0
+  configMode = (digitalRead(CONFIG_READ_PIN) == LOW);
+  if (configMode)
+  {
+    configMode = true;
+    BlynkState::set(MODE_WAIT_CONFIG); //blynk.run will take it from there
+    Serial.println("Config mode started");
+  }
+
+  digitalWrite(CONFIG_LOW_PIN, HIGH);
   BlynkProvisioning.begin();
 }
 
 void loop()
 {
-
-  if (!configMode & false)
-  {
-    //if (digitalRead(CONFIG_PIN) == LOW)
-    {
-      configMode = true;
-      BlynkState::set(MODE_WAIT_CONFIG); //blynk.run will take it from there
-      Serial.println("Config mode started");
-    }
-  }
 
   BlynkProvisioning.run();
 
@@ -125,7 +133,7 @@ void loop()
       leak_detect = 1;
     }
 
-    delay(1000);
+    delay(500);
   }
 
   if (!leak_detect)
@@ -139,6 +147,6 @@ void loop()
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
 
-    ESP.deepSleep(DEEP_SLEEP_TIME);
+    ESP.deepSleep(ESP.deepSleepMax());
   }
 }
