@@ -30,14 +30,11 @@
 #define TX_PORT 1
 #define INPUT_PIN RX_PORT
 
-#define CONFIG_READ_PIN 0
-#define CONFIG_LOW_PIN 2
-
-#define DEEP_SLEEP_TIME 3600e6
+#define CONFIG_READ_PIN 2
+#define CONFIG_LOW_PIN 0
 
 #define MSG_LEAK "Leak Detected."
-#define MSG_NO_LEAK "No Leak Detected."
-#define MSG_SLEEP "In Deep Sleep."
+#define MSG_SLEEP "No Leak, sleeping."
 
 #include <MyBlynkProvisioningESP8266.h>
 #include <MyCommonBlynk.h>
@@ -58,7 +55,7 @@ void ICACHE_RAM_ATTR watchDog()
 
   if (sec_passed >= WATCH_DOG_TIMEOUT)
   {
-    ESP.deepSleep(DEEP_SLEEP_TIME);
+    ESP.deepSleep(ESP.deepSleepMax());
   }
 }
 
@@ -81,77 +78,71 @@ void setup()
   pinMode(INPUT_PIN, INPUT_PULLUP);
   //if required use pin 0 and 2 as output
   pinMode(CONFIG_LOW_PIN, OUTPUT);
-  //pinMode(CONFIG_READ_PIN, OUTPUT);
+  pinMode(CONFIG_READ_PIN, OUTPUT);
   //digitalWrite(CONFIG_READ_PIN, HIGH);
-  delay(100);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
 
   //setup watch dog in case blynk got stuck
   timer_init();
 
-  digitalWrite(CONFIG_LOW_PIN, LOW); // make GPIO0 output low  
+  //digitalWrite(CONFIG_LOW_PIN, LOW); // make GPIO0 output low
   // check GPIO2 input to see if push button pressed connecting it to GPIO0
+  delay(100);
   configMode = (digitalRead(CONFIG_READ_PIN) == LOW);
   if (configMode)
   {
     configMode = true;
     BlynkState::set(MODE_WAIT_CONFIG); //blynk.run will take it from there
     Serial.println("Config mode started");
-  }else
-  {
-    digitalWrite(CONFIG_LOW_PIN, HIGH);
   }
-  
+  digitalWrite(CONFIG_LOW_PIN, HIGH);
 
-  
   BlynkProvisioning.begin();
 }
 
+int nTry = 1;
 void loop()
 {
 
   BlynkProvisioning.run();
 
   if (!Blynk.connected())
-  {
-    return;
+  { 
+     return;
   }
-
-  char leak_detect = 0;
-  Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "Checking For Leak ...");
-  delay(500);
-
-  for (int i = 0; i < 5; ++i)
+  else
   {
-    if (digitalRead(INPUT_PIN) == LOW)
-    {
-      Serial.println(MSG_LEAK);
-      Blynk.notify(MSG_LEAK);
+    configMode=false;
+  }
+  
 
-      Blynk.virtualWrite(V1, "\xE2\x8F\xB3", MSG_LEAK); // Send time to Display Widget
-      delay(500);
+  bool leak_detect = false;
+  Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "Checking For Leak ... try "+String(nTry));
 
-      //clear the display
-      Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "!!!!!!!!!!!!!!"); // Send time to Display Widget
+  if (digitalRead(INPUT_PIN) == LOW)
+  {
+    Serial.println(MSG_LEAK);
+    Blynk.notify(MSG_LEAK);
 
-      leak_detect = 1;
-    }
-
+    Blynk.virtualWrite(V1, "\xE2\x8F\xB3", MSG_LEAK); // Send time to Display Widget
     delay(500);
+
+    //clear the display
+    Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "!!!!!!!!!!!!!!"); // Send time to Display Widget
+
+    leak_detect = true;
   }
 
-  if (!leak_detect)
-  {
-    Blynk.virtualWrite(V1, "\xE2\x8F\xB3", MSG_NO_LEAK); // Send time to Display Widget
-    Serial.println(MSG_NO_LEAK);
-    delay(1000); //delay for user to see the message
+  delay(100);
 
+  if (!leak_detect && ++nTry>4)
+  {    
     String sleep_msg = getDateAndTime() + " " + MSG_SLEEP;
     Blynk.virtualWrite(V1, sleep_msg); // Send time to Display Widget
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
 
-    ESP.deepSleep(DEEP_SLEEP_TIME);
+    ESP.deepSleep(ESP.deepSleepMax());
   }
 }
