@@ -31,7 +31,7 @@
 #define INPUT_PIN RX_PORT
 
 #define CONFIG_READ_PIN 2
-#define CONFIG_LOW_PIN 0
+#define CONFIG_SIGNAL_PIN 0
 
 #define MSG_LEAK "Leak Detected."
 #define MSG_SLEEP "No Leak, sleeping."
@@ -77,7 +77,7 @@ void setup()
   pinMode(INPUT_PIN, FUNCTION_0); // this changes Rx port to be GPIO, Required
   pinMode(INPUT_PIN, INPUT_PULLUP);
   //if required use pin 0 and 2 as output
-  pinMode(CONFIG_LOW_PIN, OUTPUT);
+  pinMode(CONFIG_SIGNAL_PIN, OUTPUT);
   pinMode(CONFIG_READ_PIN, OUTPUT);
   //digitalWrite(CONFIG_READ_PIN, HIGH);
 
@@ -86,19 +86,20 @@ void setup()
   //setup watch dog in case blynk got stuck
   timer_init();
 
-  //digitalWrite(CONFIG_LOW_PIN, LOW); // make GPIO0 output low
+  //digitalWrite(CONFIG_SIGNAL_PIN, LOW); // make GPIO0 output low
   // check GPIO2 input to see if push button pressed connecting it to GPIO0
   delay(100);
-  configMode = (digitalRead(CONFIG_READ_PIN) == LOW);
+  
+  BlynkProvisioning.begin();
   if (configMode)
   {
     configMode = true;
     BlynkState::set(MODE_WAIT_CONFIG); //blynk.run will take it from there
     Serial.println("Config mode started");
   }
-  digitalWrite(CONFIG_LOW_PIN, HIGH);
+  
 
-  BlynkProvisioning.begin();
+  
 }
 
 int nTry = 1;
