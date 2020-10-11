@@ -56,7 +56,14 @@ void ICACHE_RAM_ATTR watchDog()
 
   if (sec_passed >= WATCH_DOG_TIMEOUT)
   {
-    ESP.deepSleep(ESP.deepSleepMax());
+    if (leak_detected)
+    {
+      ESP.restart();
+    }
+    else
+    {
+      ESP.deepSleep(ESP.deepSleepMax());
+    }
   }
 }
 
@@ -84,7 +91,8 @@ void setup()
   //couldn't get pin 0 or 2 as GPIO stably, it was recuding connection power
 
   //use TX pin as config mode
-  pinMode(TX_PORT, FUNCTION_3); //GPIO
+  pinMode(TX_PORT, FUNCTION_3);   //GPIO
+  pinMode(TX_PORT, INPUT); //GPIO
   configMode = digitalRead(TX_PORT) == HIGH;
 
   if (!configMode)
@@ -96,7 +104,7 @@ void setup()
 
   //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
-  pinMode(INPUT_PIN, FUNCTION_0); // this is required
+  pinMode(INPUT_PIN, FUNCTION_3); // this is required
   pinMode(INPUT_PIN, INPUT);
 
   pinMode(PIN0, OUTPUT);
@@ -150,7 +158,7 @@ void loop()
     Blynk.virtualWrite(V1, sleep_msg); // Send time to Display Widget
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
-    
+
     Serial.end();
     ESP.deepSleep(ESP.deepSleepMax());
   }
