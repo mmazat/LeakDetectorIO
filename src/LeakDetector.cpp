@@ -80,7 +80,7 @@ void timer_init(void)
 
 void detectLeak()
 {
-  if (digitalRead(INPUT_PIN) == HIGH)
+  if (digitalRead(INPUT_PIN) == LOW)
   {
     leak_detected = true;
   }
@@ -91,8 +91,9 @@ void setup()
   //couldn't get pin 0 or 2 as GPIO stably, it was recuding connection power
 
   //use TX pin as config mode
-  pinMode(TX_PORT, FUNCTION_3);   //GPIO
-  pinMode(TX_PORT, INPUT); //GPIO
+  pinMode(TX_PORT, FUNCTION_3); //GPIO
+  pinMode(TX_PORT, OUTPUT);
+  digitalWrite(TX_PORT,LOW);
   configMode = digitalRead(TX_PORT) == HIGH;
 
   if (!configMode)
@@ -105,7 +106,12 @@ void setup()
   //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   pinMode(INPUT_PIN, FUNCTION_3); // this is required
-  pinMode(INPUT_PIN, INPUT);
+  pinMode(INPUT_PIN, INPUT_PULLUP);
+  /**
+   * check for a leak once here, just to change behaviour of watch dog to restart 
+   * it means if there is a leak and board can't connect to blynk, restart the board
+  */
+  detectLeak();
 
   pinMode(PIN0, OUTPUT);
   pinMode(PIN2, OUTPUT);
