@@ -22,7 +22,7 @@
 //in case connection can not be established, sleep long enough to save battery
 
 #define WATCH_DOG_TIMEOUT 20   //seconds, time to config the chip
-#define DEEP_SLEEP_TIME 3600e6 //microsec
+
 
 //skip restarting the board after blynk connection error, and let the wa  tch dog sleep the board to save power
 #define DONT_RESTART_AFTER_ERROR
@@ -44,6 +44,7 @@
 //is not stablished
 bool configMode = false;
 bool leak_detected = false;
+ 
 void ICACHE_RAM_ATTR watchDog()
 {
 
@@ -88,7 +89,7 @@ void detectLeak()
 
 void setup()
 {
-  //couldn't get pin 0 or 2 as GPIO stably, it was recuding connection power
+  //couldn't get pin 0 or 2 as GPIO stably, it makes WIFI connections instable, used TX instead
 
   //use TX pin as config mode
   pinMode(TX_PORT, FUNCTION_3); //GPIO
@@ -98,7 +99,9 @@ void setup()
 
   if (!configMode)
   {
-    pinMode(TX_PORT, FUNCTION_0); //revert to TX
+    //revert to TX
+    pinMode(TX_PORT, FUNCTION_0); 
+    
     //setup watch dog in case blynk got stuck
     timer_init();
   }
@@ -107,12 +110,16 @@ void setup()
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   pinMode(INPUT_PIN, FUNCTION_3); // this is required
   pinMode(INPUT_PIN, INPUT_PULLUP);
+  
   /**
    * check for a leak once here, just to change behaviour of watch dog to restart 
-   * it means if there is a leak and board can't connect to blynk, restart the board
+   * it means if there is a leak and board can't connect to blynk, restart the board instead of sleep
   */
   detectLeak();
-
+  
+  /**
+   * keeps the board led ON and provides two output ports
+   */
   pinMode(PIN0, OUTPUT);
   pinMode(PIN2, OUTPUT);
 
