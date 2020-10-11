@@ -21,7 +21,8 @@
 //sleep time between each measurement
 //in case connection can not be established, sleep long enough to save battery
 
-#define WATCH_DOG_TIMEOUT 20 //seconds, time to config the chip
+#define WATCH_DOG_TIMEOUT 20   //seconds, time to config the chip
+#define DEEP_SLEEP_TIME 3600e6 //microsec
 
 //skip restarting the board after blynk connection error, and let the wa  tch dog sleep the board to save power
 #define DONT_RESTART_AFTER_ERROR
@@ -29,6 +30,8 @@
 #define RX_PORT 3
 #define TX_PORT 1
 #define INPUT_PIN RX_PORT
+#define PIN0 0
+#define PIN2 2
 
 #define MSG_LEAK "Leak Detected."
 #define MSG_SLEEP "No Leak, sleeping."
@@ -40,6 +43,7 @@
 //which consumes a lot of power. watch dog will sleep the chip if connectino
 //is not stablished
 bool configMode = false;
+bool leak_detected = false;
 void ICACHE_RAM_ATTR watchDog()
 {
 
@@ -67,27 +71,37 @@ void timer_init(void)
   timer1_write(10e6);
 }
 
+void detectLeak()
+{
+  if (digitalRead(INPUT_PIN) == HIGH)
+  {
+    leak_detected = true;
+  }
+}
+
 void setup()
 {
-  //couldn't get pin 0 or 2 as GPIO stably, it was recuding connection power 
-  
+  //couldn't get pin 0 or 2 as GPIO stably, it was recuding connection power
+
   //use TX pin as config mode
-  pinMode(TX_PORT, FUNCTION_3); //GPIO  
-  configMode = digitalRead(TX_PORT) == HIGH;  
-  if (!configMode)  {
+  pinMode(TX_PORT, FUNCTION_3); //GPIO
+  configMode = digitalRead(TX_PORT) == HIGH;
+
+  if (!configMode)
+  {
     pinMode(TX_PORT, FUNCTION_0); //revert to TX
+    //setup watch dog in case blynk got stuck
+    timer_init();
   }
 
   //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
-  pinMode(INPUT_PIN, FUNCTION_3); // this changes Rx port to be GPIO, Required
-  pinMode(INPUT_PIN, INPUT_PULLUP);
-
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
+  pinMode(INPUT_PIN, FUNCTION_0); // this is required
+  pinMode(INPUT_PIN, INPUT);
 
-  //setup watch dog in case blynk got stuck
-  timer_init();
+  pinMode(PIN0, OUTPUT);
+  pinMode(PIN2, OUTPUT);
 
-  //digitalWrite(CONFIG_SIGNAL_PIN, LOW); // make GPIO0 output low
   // check GPIO2 input to see if push button pressed connecting it to GPIO0
   delay(100);
 
@@ -114,7 +128,9 @@ void loop()
   bool leak_detect = false;
   Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "Checking For Leak ... try " + String(nTry));
 
-  if (digitalRead(INPUT_PIN) == LOW)
+  detectLeak();
+
+  if (leak_detected)
   {
     Serial.println(MSG_LEAK);
     Blynk.notify(MSG_LEAK);
@@ -124,8 +140,6 @@ void loop()
 
     //clear the display
     Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "!!!!!!!!!!!!!!"); // Send time to Display Widget
-
-    leak_detect = true;
   }
 
   delay(100);
@@ -136,7 +150,8 @@ void loop()
     Blynk.virtualWrite(V1, sleep_msg); // Send time to Display Widget
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
-
+    
+    Serial.end();
     ESP.deepSleep(ESP.deepSleepMax());
   }
 }
