@@ -30,9 +30,6 @@
 #define TX_PORT 1
 #define INPUT_PIN RX_PORT
 
-
-#define CONFIG_SIGNAL_PIN 2
-
 #define MSG_LEAK "Leak Detected."
 #define MSG_SLEEP "No Leak, sleeping."
 
@@ -71,13 +68,19 @@ void timer_init(void)
 }
 
 void setup()
-{  
-  //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
-  pinMode(INPUT_PIN, FUNCTION_0); // this changes Rx port to be GPIO, Required
-  pinMode(INPUT_PIN, INPUT_PULLUP);
-  //if required use pin 0 and 2 as output
-  pinMode(CONFIG_SIGNAL_PIN, OUTPUT);
+{
+  //couldn't get pin 0 or 2 as GPIO stably, it was recuding connection power 
   
+  //use TX pin as config mode
+  pinMode(TX_PORT, FUNCTION_3); //GPIO  
+  configMode = digitalRead(TX_PORT) == HIGH;  
+  if (!configMode)  {
+    pinMode(TX_PORT, FUNCTION_0); //revert to TX
+  }
+
+  //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
+  pinMode(INPUT_PIN, FUNCTION_3); // this changes Rx port to be GPIO, Required
+  pinMode(INPUT_PIN, INPUT_PULLUP);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
 
@@ -87,13 +90,6 @@ void setup()
   //digitalWrite(CONFIG_SIGNAL_PIN, LOW); // make GPIO0 output low
   // check GPIO2 input to see if push button pressed connecting it to GPIO0
   delay(100);
-
-  //digitalWrite(CONFIG_SIGNAL_PIN, LOW);
-    bool first_sig = digitalRead(INPUT_PIN) == LOW;
-  digitalWrite(CONFIG_SIGNAL_PIN, HIGH);  
-  bool second_sig = digitalRead(INPUT_PIN) == HIGH;
-  configMode = first_sig && second_sig;
-  digitalWrite(CONFIG_SIGNAL_PIN, LOW);
 
   BlynkProvisioning.begin();
   if (configMode)
@@ -109,20 +105,10 @@ void loop()
 {
 
   BlynkProvisioning.run();
-  delay(10);
+
   if (!Blynk.connected())
   {
     return;
-  }
-  else
-  {
-    if (configMode)
-    {
-      configMode = false;
-      Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "configed!");
-      delay(200);
-      ESP.deepSleep(ESP.deepSleepMax());
-    }
   }
 
   bool leak_detect = false;
