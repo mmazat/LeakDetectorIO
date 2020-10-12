@@ -21,8 +21,7 @@
 //sleep time between each measurement
 //in case connection can not be established, sleep long enough to save battery
 
-#define WATCH_DOG_TIMEOUT 20   //seconds, time to config the chip
-
+#define WATCH_DOG_TIMEOUT 20 //seconds, time to config the chip
 
 //skip restarting the board after blynk connection error, and let the wa  tch dog sleep the board to save power
 #define DONT_RESTART_AFTER_ERROR
@@ -44,7 +43,7 @@
 //is not stablished
 bool configMode = false;
 bool leak_detected = false;
- 
+
 void ICACHE_RAM_ATTR watchDog()
 {
 
@@ -76,7 +75,7 @@ void timer_init(void)
   timer1_isr_init();
   timer1_attachInterrupt(watchDog);
   timer1_enable(TIM_DIV256, TIM_EDGE, TIM_LOOP);
-  timer1_write(10e6);
+  timer1_write(1e6);
 }
 
 void detectLeak()
@@ -91,39 +90,40 @@ void setup()
 {
   //couldn't get pin 0 or 2 as GPIO stably, it makes WIFI connections instable, used TX instead
 
-  //use TX pin as config mode
-  pinMode(TX_PORT, FUNCTION_3); //GPIO
-  pinMode(TX_PORT, OUTPUT);
-  digitalWrite(TX_PORT,LOW);
-  configMode = digitalRead(TX_PORT) == HIGH;
+  //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
+  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
+
+  pinMode(INPUT_PIN, FUNCTION_3); // this is required
+  pinMode(INPUT_PIN, OUTPUT);
+  digitalWrite(INPUT_PIN, LOW);
+  //if config jumper is not connected, it must stay low
+  configMode = digitalRead(INPUT_PIN) == HIGH;
+
+  //revert to high
+  digitalWrite(INPUT_PIN, HIGH);
+  pinMode(INPUT_PIN, INPUT_PULLUP);
+
+  /**  
+  * keeps the led on
+  * provides two output ports
+ */
+  pinMode(PIN0, OUTPUT);
+  pinMode(PIN2, OUTPUT);
 
   if (!configMode)
   {
-    //revert to TX
-    pinMode(TX_PORT, FUNCTION_0); 
-    
     //setup watch dog in case blynk got stuck
     timer_init();
   }
 
-  //https://www.forward.com.au/pfod/ESP8266/GPIOpins/ESP8266_01_pin_magic.html
-  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
-  pinMode(INPUT_PIN, FUNCTION_3); // this is required
-  pinMode(INPUT_PIN, INPUT_PULLUP);
-  
   /**
    * check for a leak once here, just to change behaviour of watch dog to restart 
    * it means if there is a leak and board can't connect to blynk, restart the board instead of sleep
+   * working great!
   */
   detectLeak();
-  
-  /**
-   * keeps the board led ON and provides two output ports
-   */
-  pinMode(PIN0, OUTPUT);
-  pinMode(PIN2, OUTPUT);
 
-  // check GPIO2 input to see if push button pressed connecting it to GPIO0
+  
   delay(100);
 
   BlynkProvisioning.begin();
@@ -140,6 +140,8 @@ void loop()
 {
 
   BlynkProvisioning.run();
+
+  delay(100);
 
   if (!Blynk.connected())
   {
@@ -163,16 +165,12 @@ void loop()
     Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "!!!!!!!!!!!!!!"); // Send time to Display Widget
   }
 
-  delay(100);
-
   if (!leak_detect && ++nTry > 4)
   {
     String sleep_msg = getDateAndTime() + " " + MSG_SLEEP;
     Blynk.virtualWrite(V1, sleep_msg); // Send time to Display Widget
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
-
-    Serial.end();
     ESP.deepSleep(ESP.deepSleepMax());
   }
 }
