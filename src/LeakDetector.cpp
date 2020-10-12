@@ -32,18 +32,26 @@
 #define PIN0 0
 #define PIN2 2
 
+
 #define MSG_LEAK "Leak Detected."
 #define MSG_SLEEP "No Leak, sleeping."
 
 #include <MyBlynkProvisioningESP8266.h>
 #include <MyCommonBlynk.h>
 
+
+
+
+void gotoSleep()
+{
+  ESP.deepSleep(ESP.deepSleepMax());
+}
+
 //in case of interuption, Blynk stuck and goes to configure mode
 //which consumes a lot of power. watch dog will sleep the chip if connectino
 //is not stablished
 bool configMode = false;
 bool leak_detected = false;
-
 void ICACHE_RAM_ATTR watchDog()
 {
 
@@ -62,7 +70,7 @@ void ICACHE_RAM_ATTR watchDog()
     }
     else
     {
-      ESP.deepSleep(ESP.deepSleepMax());
+      gotoSleep();
     }
   }
 }
@@ -105,7 +113,7 @@ void setup()
 
   /**  
   * keeps the led on
-  * provides two output ports
+  * provides two output ports  
  */
   pinMode(PIN0, OUTPUT);
   pinMode(PIN2, OUTPUT);
@@ -123,7 +131,6 @@ void setup()
   */
   detectLeak();
 
-  
   delay(100);
 
   BlynkProvisioning.begin();
@@ -171,6 +178,6 @@ void loop()
     Blynk.virtualWrite(V1, sleep_msg); // Send time to Display Widget
     Serial.println(sleep_msg);
     delay(200); // delay to make sure data is sent
-    ESP.deepSleep(ESP.deepSleepMax());
+    gotoSleep();
   }
 }
