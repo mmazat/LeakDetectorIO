@@ -10,6 +10,8 @@
  *************************************************************/
 
 #define USE_ESP01S_BOARD // For all other ESP8266-based boards -
+//ESP01-S has pullup resistor 12k to chip_en, RST, GPI0
+
 // see "Custom board configuration" in Settings.h
 
 #define APP_DEBUG // Comment this out to disable debug prints
@@ -32,15 +34,11 @@
 #define PIN0 0
 #define PIN2 2
 
-
 #define MSG_LEAK "Leak Detected."
 #define MSG_SLEEP "No Leak, sleeping."
 
 #include <MyBlynkProvisioningESP8266.h>
 #include <MyCommonBlynk.h>
-
-
-
 
 void gotoSleep()
 {
@@ -83,7 +81,7 @@ void timer_init(void)
   timer1_isr_init();
   timer1_attachInterrupt(watchDog);
   timer1_enable(TIM_DIV256, TIM_EDGE, TIM_LOOP);
-  timer1_write(1e6);
+  timer1_write(5e6);
 }
 
 void detectLeak()
@@ -112,11 +110,10 @@ void setup()
   pinMode(INPUT_PIN, INPUT_PULLUP);
 
   /**  
-  * keeps the led on
   * provides two output ports  
  */
-  pinMode(PIN0, OUTPUT);
-  pinMode(PIN2, OUTPUT);
+  //pinMode(PIN0, OUTPUT);
+  //pinMode(PIN2, OUTPUT);
 
   if (!configMode)
   {
@@ -142,37 +139,38 @@ void setup()
   }
 }
 
-int nTry = 1;
 void loop()
 {
 
   BlynkProvisioning.run();
-
-  delay(100);
 
   if (!Blynk.connected())
   {
     return;
   }
 
-  bool leak_detect = false;
-  Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "Checking For Leak ... try " + String(nTry));
-
-  detectLeak();
-
-  if (leak_detected)
+  for (int nTry = 0; nTry < 4; ++nTry)
   {
-    Serial.println(MSG_LEAK);
-    Blynk.notify(MSG_LEAK);
+    Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "Checking For Leak ... try " + String(nTry));
 
-    Blynk.virtualWrite(V1, "\xE2\x8F\xB3", MSG_LEAK); // Send time to Display Widget
+    detectLeak();
+
+    if (leak_detected)
+    {
+      Serial.println(MSG_LEAK);
+      Blynk.notify(MSG_LEAK);
+
+      Blynk.virtualWrite(V1, "\xE2\x8F\xB3", MSG_LEAK); // Send time to Display Widget
+      delay(500);
+
+      //clear the display
+      Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "!!!!!!!!!!!!!!"); // Send time to Display Widget
+    }
+
     delay(500);
-
-    //clear the display
-    Blynk.virtualWrite(V1, "\xE2\x8F\xB3", "!!!!!!!!!!!!!!"); // Send time to Display Widget
   }
 
-  if (!leak_detect && ++nTry > 4)
+  if (!leak_detected)
   {
     String sleep_msg = getDateAndTime() + " " + MSG_SLEEP;
     Blynk.virtualWrite(V1, sleep_msg); // Send time to Display Widget
